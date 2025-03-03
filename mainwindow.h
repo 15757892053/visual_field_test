@@ -21,8 +21,6 @@ public:
 private slots:
     void on_pushButton_clicked();
 
-    void on_database_check_clicked();
-
     void on_database_change_clicked();
 
 private:
@@ -30,6 +28,7 @@ private:
     Ui::MainWindow *ui;
     Test_widget* test_widget;
     Data_base* viusal_database;
+    bool people_message_register();
 
 };
 #endif // MAINWINDOW_H

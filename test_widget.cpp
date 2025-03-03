@@ -1,12 +1,13 @@
 #include "test_widget.h"
 #include "ui_test_widget.h"
 
-Test_widget::Test_widget(QWidget *parent) :
+Test_widget::Test_widget(Data_base* visual , QWidget *parent) :
     QWidget(parent),
-    ui(new Ui::Test_widget)
+    ui(new Ui::Test_widget),
+    visual_data(visual)
 {
     ui->setupUi(this);
-    initTestRegion(); // 初始化测试区域
+//    initTestRegion(); // 初始化测试区域
 }
 
 Test_widget::~Test_widget()
@@ -14,15 +15,63 @@ Test_widget::~Test_widget()
     delete ui;
 }
 
+void Test_widget::appear_stimulate()
+{
+
+}
+
+void Test_widget::disappear_stimulate()
+{
+
+}
+
 void Test_widget::initTestRegion()
 {
-    for (int i = 0; i < 8; ++i) {
-        for (int j = 0; j < 9; ++j) {
-            Test_Region.push_back({j, i}); // 假设 RectROI 有 col 和 row 成员
+    eye_type eye = visual_data->get_eyetype();
+    QVector<QVector<double>> init_mean = visual_data->Get_mean_threshold();
+    //如果是左眼则将初始阈值数据进行水平反转，因为存储都是按照右眼格式进行存储
+    if(eye == LEFT_EYE){
+        for (auto& row : init_mean) {
+            int left = 0;
+            int right = row.size() - 1;
+            while (left < right) {
+                double temp = row[left];
+                row[left] = row[right];
+                row[right] = temp;
+                left++;
+                right--;
+            }
         }
     }
 
-    start_x = size().width() / 2 - 3.5 * rect_edge; // 计算起始 x 坐标
+
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 9; ++j) {
+            RectROI roi;
+            roi.row = j;
+            roi.col = i;
+            roi.now_thresholds = int(init_mean[i][j]);
+            if(isInTopLeftTriangle(j, i,eye) ||
+               isInBottomLeftTriangle(j, i,eye) ||
+               isInTopRightTriangle(j, i,eye) ||
+               isInBottomRightTriangle(j, i,eye)){
+                roi.invaild_area = true;
+            }
+            if(isAtSpecificPoint(j,i,eye)){
+                roi.blind_spot=true;
+            }
+
+
+            Test_Region.push_back(roi); // 假设 RectROI 有 col 和 row 成员
+
+
+        }
+    }
+    if(eye == LEFT_EYE){
+        start_x = size().width() / 2 - 4.5 * rect_edge; // 计算起始 x 坐标
+    }
+    else start_x = size().width() / 2 - 3.5 * rect_edge; // 计算起始 x 坐标
+
     start_y = size().height() / 2 - 3.5 * rect_edge; // 计算起始 y 坐标
     //将要检测的区域加入到set中
     for (int i = 0; i < Test_Region.size(); ++i) {
@@ -62,8 +111,19 @@ void Test_widget::start_test(QPainter &painter)
 
     //在测试区域产生刺激，绘制刺激点
     now_check_point = &Test_Region[selectedIndex];
+    QPoint showpoint = QPoint(start_x+now_check_point->row*rect_edge,start_x+now_check_point->col*rect_edge);
 
+    // 确保插值结果在 0 到 30 之间
+    int interpolatedValue = std::max(0, std::min(30, now_check_point->now_thresholds));
+    // 线性映射到灰度值
+    float normalized = interpolatedValue / 30.0f;
+    float sigmoid = 1.0f / (1.0f + std::exp(-10 * (normalized - 0.5f)));
+    int Gray = static_cast<int>(sigmoid * 255.0f);
 
+    QColor grayColor(Gray, Gray, Gray);
+    QPen pen(grayColor, 10, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+    painter.setPen(pen);
+    painter.drawPoint(showpoint);
     //更新区域参数，修改校验对，用于验证假阴假阳
 
 
@@ -100,11 +160,9 @@ void Test_widget::paintEvent(QPaintEvent *event)
                 start_test(painter);
             }
             //待测试点集为空，停止刷新显示刺激定时器
-            else return;
-        }
-
-        else{
-            clear_background(painter);
+            else{
+                return;
+            }
         }
 
     }

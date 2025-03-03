@@ -15,89 +15,14 @@ void Data_base::init_database()
     }
     else qDebug() << "open success";
 
-    QSqlQuery query;
-    // 创建人物表 (person)
-    QString sqlCreatePersonTable = QString(
-        "CREATE TABLE IF NOT EXISTS person ("
-        "person_id INTEGER PRIMARY KEY, "
-        "gender TEXT, "
-        "year INTEGER "
-        ");"
-        );
-    if (!query.exec(sqlCreatePersonTable)) {
-        qDebug() << "create person table error:" << query.lastError();
-    } else {
-        qDebug() << "create person table success";
-    }
+    QSqlQuery query(Visual_DB);
+    creat_datatable(query);
 
-    // 创建眼睛表 (eye)
-    QString sqlCreateEyeTable = QString(
-        "CREATE TABLE IF NOT EXISTS eye ("
-        "eye_id INTEGER PRIMARY KEY AUTOINCREMENT, "
-        "person_id INTEGER, "
-        "eye_type TEXT CHECK(eye_type IN ('L', 'R')), "
-        "FOREIGN KEY (person_id) REFERENCES person(person_id)"
-        ");"
-        );
-    if (!query.exec(sqlCreateEyeTable)) {
-        qDebug() << "create eye table error:" << query.lastError();
-    } else {
-        qDebug() << "create eye table success";
-    }
-
-    // 创建测试数据表 (test_data)
-    QString sqlCreateTestDataTable = QString(
-        "CREATE TABLE IF NOT EXISTS test_data ("
-        "test_id INTEGER PRIMARY KEY AUTOINCREMENT, "
-        "eye_id REAL, "
-        "test_age INTEGER, "
-        "hvf TEXT, "  // 存储矩阵数据（JSON 或文本格式）
-        "td TEXT, "
-        "FOREIGN KEY (eye_id) REFERENCES eye(eye_id)"
-        ");"
-        );
-    if (!query.exec(sqlCreateTestDataTable)) {
-        qDebug() << "create test_data table error:" << query.lastError();
-    } else {
-        qDebug() << "create test_data table success";
-    }
-
-    deleteTable("mean_data_R");
-    deleteTable("mean_data_L");
-
-    // 创建新表
-    QString sqlCreateMean_RTable = QString(
-        "CREATE TABLE IF NOT EXISTS mean_data_R ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-        "test_age REAL, "
-        "merged_matrix TEXT "
-        ");"
-        );
-    if (!query.exec(sqlCreateMean_RTable)) {
-        qDebug() << "Create new table error:" << query.lastError();
-    }else {
-        qDebug() << "create mean table success";
-    }
+//    calculatemeanAndInsert(LEFT_EYE);
+//    calculatemeanAndInsert(RIGHT_EYE);
 
 
-    QString sqlCreateMean_LTable = QString(
-        "CREATE TABLE IF NOT EXISTS mean_data_L ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-        "test_age REAL, "
-        "merged_matrix TEXT "
-        ");"
-        );
-
-    if (!query.exec(sqlCreateMean_LTable)) {
-        qDebug() << "Create new table error:" << query.lastError();
-    }else {
-        qDebug() << "create mean table success";
-    }
-
-
-
-
-#if 1
+#if 0
     QString sqlSelect = "SELECT test_age, hvf, td ,eye_id  FROM test_data ORDER BY test_age ASC";
     if (!query.exec(sqlSelect)) {
         qDebug() << "Select data error:" << query.lastError();
@@ -260,6 +185,32 @@ void Data_base::parseAndInsertData(const QByteArray &jsonData)
     }
 }
 
+QVector<QVector<double>> Data_base::Get_mean_threshold()
+{
+    QVector<QVector<double>> result;
+    QString selecttablename;
+    QSqlQuery selectQuery;
+    if(people_info.eye==LEFT_EYE) selecttablename = "new_mean_data_L";
+    else selecttablename = "new_mean_data_R";
+    QString sqlselect = QString("SELECT merged_matrix FROM %1 WHERE test_age = :test_age").arg(selecttablename);
+    int test_age = people_info.age;
+    selectQuery.prepare(sqlselect);
+    selectQuery.bindValue(":test_age",test_age);
+    if (!selectQuery.exec()) {
+        // 处理查询失败的情况
+        qDebug() << "Query execution failed:" << selectQuery.lastError().text();
+        return result;
+    }
+
+    while(selectQuery.next()){
+        QString meanStr = selectQuery.value("merged_matrix").toString();
+        result = jsonToMatrix(meanStr);
+    }
+
+    return result;
+
+}
+
 bool Data_base::deleteTable(const QString &tableName)
 {
     // 创建 QSqlQuery 对象
@@ -276,7 +227,178 @@ bool Data_base::deleteTable(const QString &tableName)
     return true;
 }
 
-QVector<QVector<double> > Data_base::jsonToMatrix(const QString &jsonStr)
+bool Data_base::calculatemeanAndInsert(eye_type eye)
+{
+    QMap<int, QVector<QVector<double>>> ageGroupedData;
+    QMap<int, int> ageGroupCount;
+    QString old_tablename ,new_tablename;
+    if(eye==LEFT_EYE) {
+       old_tablename = "mean_data_L";
+       new_tablename = "new_mean_data_L";
+    }
+    else {
+       old_tablename = "mean_data_R";
+       new_tablename = "new_mean_data_R";
+    }
+
+    QSqlQuery selectQuery(Visual_DB);
+    QString sqlselect = QString("SELECT test_age, merged_matrix FROM %1").arg(old_tablename);
+    if (!selectQuery.exec(sqlselect)) {
+       qDebug() << "Failed to execute select query:" << selectQuery.lastError().text();
+       return false;
+    }
+
+    // 分组计算平均值
+    while (selectQuery.next()) {
+       int age = selectQuery.value("test_age").toInt();
+       QString matrixStr = selectQuery.value("merged_matrix").toString();
+       QVector<QVector<double>> matrix = jsonToMatrix(matrixStr);
+
+       if (ageGroupedData.contains(age)) {
+            int count = ageGroupCount[age] + 1;
+            ageGroupedData[age] = mergeAndAverage(ageGroupedData[age], matrix, count);
+            ageGroupCount[age] = count;
+       } else {
+            ageGroupedData[age] = matrix;
+            ageGroupCount[age] = 1;
+       }
+    }
+
+    // 插入数据到新表
+    QSqlQuery insertQuery(Visual_DB);
+    QString sqlinsert = QString("INSERT INTO %1 (test_age, merged_matrix) VALUES (:test_age, :merged_matrix)").arg(new_tablename);
+    insertQuery.prepare(sqlinsert);
+
+    for (auto it = ageGroupedData.begin(); it != ageGroupedData.end(); ++it) {
+       int age = it.key();
+       QVector<QVector<double>> matrix = it.value();
+       QString matrixStr = matrixToJson(matrix);
+       insertQuery.bindValue(":test_age", age);
+       insertQuery.bindValue(":merged_matrix", matrixStr);
+
+       if (!insertQuery.exec()) {
+            qDebug() << "Failed to insert data for age" << age << ":" << insertQuery.lastError().text();
+            return false;
+       }
+    }
+
+    return true;
+
+}
+
+void Data_base::creat_datatable(QSqlQuery &query)
+{
+    // 创建人物表 (person)
+    QString sqlCreatePersonTable = QString(
+        "CREATE TABLE IF NOT EXISTS person ("
+        "person_id INTEGER PRIMARY KEY, "
+        "gender TEXT, "
+        "year INTEGER "
+        ");"
+        );
+    if (!query.exec(sqlCreatePersonTable)) {
+       qDebug() << "create person table error:" << query.lastError();
+    } else {
+       qDebug() << "create person table success";
+    }
+
+    // 创建眼睛表 (eye)
+    QString sqlCreateEyeTable = QString(
+        "CREATE TABLE IF NOT EXISTS eye ("
+        "eye_id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "person_id INTEGER, "
+        "eye_type TEXT CHECK(eye_type IN ('L', 'R')), "
+        "FOREIGN KEY (person_id) REFERENCES person(person_id)"
+        ");"
+        );
+    if (!query.exec(sqlCreateEyeTable)) {
+       qDebug() << "create eye table error:" << query.lastError();
+    } else {
+       qDebug() << "create eye table success";
+    }
+
+    // 创建测试数据表 (test_data)
+    QString sqlCreateTestDataTable = QString(
+        "CREATE TABLE IF NOT EXISTS test_data ("
+        "test_id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "eye_id REAL, "
+        "test_age INTEGER, "
+        "hvf TEXT, "  // 存储矩阵数据（JSON 或文本格式）
+        "td TEXT, "
+        "FOREIGN KEY (eye_id) REFERENCES eye(eye_id)"
+        ");"
+        );
+    if (!query.exec(sqlCreateTestDataTable)) {
+       qDebug() << "create test_data table error:" << query.lastError();
+    } else {
+       qDebug() << "create test_data table success";
+    }
+
+    //    deleteTable("mean_data_R");
+    //    deleteTable("mean_data_L");
+
+    // 创建新表
+    QString sqlCreateMean_RTable = QString(
+        "CREATE TABLE IF NOT EXISTS mean_data_R ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "test_age REAL, "
+        "merged_matrix TEXT "
+        ");"
+        );
+    if (!query.exec(sqlCreateMean_RTable)) {
+       qDebug() << "Create new table error:" << query.lastError();
+    }else {
+       qDebug() << "create mean table success";
+    }
+
+
+    QString sqlCreateMean_LTable = QString(
+        "CREATE TABLE IF NOT EXISTS mean_data_L ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "test_age REAL, "
+        "merged_matrix TEXT "
+        ");"
+        );
+
+    if (!query.exec(sqlCreateMean_LTable)) {
+       qDebug() << "Create new table error:" << query.lastError();
+    }else {
+       qDebug() << "create mean table success";
+    }
+
+    //创建分段mean表
+    QString sqlCreateMean_newLTable = QString(
+        "CREATE TABLE IF NOT EXISTS new_mean_data_L ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "test_age INTEGER, "
+        "merged_matrix TEXT "
+        ");"
+        );
+
+    if (!query.exec(sqlCreateMean_newLTable)) {
+       qDebug() << "Create new_mean_data_L table error:" << query.lastError();
+    }else {
+       qDebug() << "create new_mean_data_L table success";
+    }
+
+    QString sqlCreateMean_newRTable = QString(
+        "CREATE TABLE IF NOT EXISTS new_mean_data_R ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "test_age INTEGER, "
+        "merged_matrix TEXT "
+        ");"
+        );
+
+    if (!query.exec(sqlCreateMean_newRTable)) {
+       qDebug() << "Create new_mean_data_R table error:" << query.lastError();
+    }else {
+       qDebug() << "create new_mean_data_R table success";
+    }
+
+
+}
+
+QVector<QVector<double>> Data_base::jsonToMatrix(const QString &jsonStr)
 {
     QVector<QVector<double>> matrix;
     QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8());
@@ -319,6 +441,18 @@ QVector<QVector<double> > Data_base::mergeMatrices(const QVector<QVector<double>
         result.append(row);
     }
     return result;
+}
+
+QVector<QVector<double> > Data_base::mergeAndAverage(const QVector<QVector<double> > &matrix1, const QVector<QVector<double> > &matrix2, int count)
+{
+    QVector<QVector<double>> result = matrix1;
+    for (int i = 0; i < matrix2.size(); ++i) {
+        for (int j = 0; j < matrix2[i].size(); ++j) {
+            result[i][j] = (result[i][j] * (count - 1) + matrix2[i][j]) / count;
+        }
+    }
+    return result;
+
 }
 
 
