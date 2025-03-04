@@ -81,7 +81,7 @@ void MainWindow::on_database_change_clicked()
 bool MainWindow::people_message_register()
 {
     if(this->ui->Left_eye_checkBox->isChecked())        viusal_database->set_eyetype(LEFT_EYE);
-    else if(this->ui->Left_eye_checkBox->isChecked())   viusal_database->set_eyetype(RIGHT_EYE);
+    else if(this->ui->Right_eye_checkBox->isChecked())   viusal_database->set_eyetype(RIGHT_EYE);
     else {
         qWarning()<<"please choose test eye";
         return false;

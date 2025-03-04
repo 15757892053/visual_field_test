@@ -27,7 +27,8 @@ typedef struct RectROI {
 
     //断定看不见所需的次数
     int need_count = 2;
-
+    //
+    bool nonesee =true;
     //阈值变化方向,阶梯法判断是否到达阈值
     change_director direact = DOWN;
     //双阶梯法记录方向变化的次数
