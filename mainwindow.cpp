@@ -9,6 +9,8 @@ MainWindow::MainWindow(QWidget *parent)
     viusal_database = new Data_base();
     viusal_database->init_database();
     test_widget = new Test_widget(viusal_database);
+    dis_widget = new DisCheckPoint(this->ui->widget);
+    connect(test_widget,&Test_widget::change_display,this,&MainWindow::display_data);
     // 创建独立的 QSqlTableModel 对象
     QSqlTableModel* personModel = new QSqlTableModel(this, viusal_database->get_database());
     personModel->setTable("new_mean_data_L");
@@ -56,6 +58,18 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::display_data(std::vector<RectROI>& roi)
+{
+    std::vector<std::tuple<int, int, float>> displayPoints;
+    qDebug()<<"刷新界面";
+    for(auto& Roi : roi){
+        displayPoints.push_back(std::make_tuple(Roi.col, Roi.row, float(Roi.now_thresholds)));
+    }
+
+    dis_widget->setPoints(displayPoints);
+
+}
+
 
 void MainWindow::on_pushButton_clicked()
 {
@@ -64,7 +78,7 @@ void MainWindow::on_pushButton_clicked()
     if(!regis_flag) return;
     test_widget->initTestRegion();
     test_widget->show();
-    this->hide();
+//    this->hide();
 
 }
 

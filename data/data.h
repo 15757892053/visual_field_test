@@ -26,7 +26,7 @@ typedef struct RectROI {
     int early_thresholds;
 
     //断定看不见所需的次数
-    int need_count = 2;
+    int need_count = 1;
     //
     bool nonesee =true;
     //阈值变化方向,阶梯法判断是否到达阈值
@@ -46,6 +46,12 @@ typedef struct RectROI {
     bool check_over = false;
     bool blind_spot = false;
     bool invaild_area = false;
+
+    //处于假阴/假阳测试
+    bool in_negative = false;
+    bool in_positive = false;
+    bool in_check = true;
+
 
 }RectROI;
 

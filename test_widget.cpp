@@ -44,7 +44,7 @@ void Test_widget::appear_stimulate()
         //避免update的异步性强制处理事件循环
         QCoreApplication::processEvents();
         Appear_flag = false;
-        disappear_timer->start(200);
+        if(!uncheckedIndices.empty()) disappear_timer->start(200);
     }
 }
 
@@ -56,17 +56,29 @@ void Test_widget::disappear_stimulate()
         update();
         QCoreApplication::processEvents();
         Appear_flag = true;
-        appear_timer->start(800);
+        if(!uncheckedIndices.empty()) appear_timer->start(800);
     }
 }
 
 void Test_widget::Key_triger()
 {
 
+
     if(now_check_point==nullptr) return;
+
+    //判断有没有进行测试模组，与常规2选1
+    if(now_check_point->in_negative||now_check_point){
+
+        now_check_point->in_negative=false;
+        now_check_point->in_positive=false;
+        now_check_point->in_check = true;
+        now_check_point->check_pair = true;
+    }
+
     if(now_check_point->check_pair == false){
         now_check_point->check_pair = true;
         Data_process->data_update(now_check_point);
+        now_check_point->has_change = true;
     }
 
 
@@ -75,7 +87,7 @@ void Test_widget::Key_triger()
 
 int Test_widget::caculate_index(RectROI *check_point)
 {
-    return check_point->col*9+check_point->row;
+    return check_point->row*9+check_point->col;
 }
 
 void Test_widget::initTestRegion()
@@ -101,9 +113,9 @@ void Test_widget::initTestRegion()
     for (int i = 0; i < 8; ++i) {
         for (int j = 0; j < 9; ++j) {
             RectROI roi;
-            roi.row = j;
-            roi.col = i;
-            roi.now_thresholds = int(init_mean[i][j])-10;
+            roi.row = i;
+            roi.col = j;
+            roi.now_thresholds = (int(init_mean[i][j])-30)<0 ? 0 : int(init_mean[i][j])-30;
             if(isInTopLeftTriangle(j, i,eye) ||
                isInBottomLeftTriangle(j, i,eye) ||
                isInTopRightTriangle(j, i,eye) ||
@@ -116,10 +128,9 @@ void Test_widget::initTestRegion()
 
 
             Test_Region.push_back(roi); // 假设 RectROI 有 col 和 row 成员
-
-
         }
     }
+
     if(eye == LEFT_EYE){
         start_x = size().width() / 2 - 4.5 * rect_edge; // 计算起始 x 坐标
     }
@@ -154,9 +165,25 @@ void Test_widget::paint_init(QPainter &painter)
 
 void Test_widget::start_test(QPainter &painter)
 {
-    //更新原先检测点的数据
+    //按照比例添加假阴假阳测试
+    if(test_time%10==0){
+        int randomChoice = std::rand() % 2;
+        if (randomChoice == 0) {
+            now_check_point->in_negative = true;
+        } else {
+            now_check_point->in_positive = true;
+        }
+    }
+    //测试绘制，只存在一次
+
+
+
+
+    //更新原先检测点的数据，若之前的测试没有反应，在这里清除
     if(now_check_point!=nullptr) {
+//        }
         Data_process->data_update(now_check_point);
+        now_check_point->has_change = true;
         //检验now_check_point是否检测完成，若完成在uncheckedIndices去除
         if(now_check_point->check_over){
             int index = caculate_index(now_check_point);
@@ -168,28 +195,27 @@ void Test_widget::start_test(QPainter &painter)
             } else {
                 qDebug()  << index << " not found in the set.";
             }
+            if(uncheckedIndices.empty()) {
+                qDebug()   << " uncheckedIndices no member test over";
+                return;
+            }
         }
     }
 
     //随机选择待测点
     // 生成一个随机索引
     int randomIndex = std::rand() % uncheckedIndices.size();
-    qDebug()<<"randomIndex: "<< randomIndex;
+
     // 取第randomIndex个未检查区域的索引
     auto it = uncheckedIndices.begin();
     std::advance(it, randomIndex);
     int selectedIndex = *it;
-
+    qDebug()<<"selectedIndex: "<< selectedIndex;
     //在测试区域产生刺激，绘制刺激点
     now_check_point = &Test_Region[selectedIndex];
-    QPoint showpoint = QPoint(start_x+now_check_point->row*rect_edge,start_x+now_check_point->col*rect_edge);
+    now_check_point->has_change = false;
 
-//    // 确保插值结果在 0 到 30 之间
-//    int interpolatedValue = std::max(0, std::min(30, now_check_point->now_thresholds));
-//    // 线性映射到灰度值
-//    float normalized = interpolatedValue / 30.0f;
-//    float sigmoid = 1.0f / (1.0f + std::exp(-10 * (normalized - 0.5f)));
-//    int Gray = static_cast<int>(sigmoid * 255.0f);
+    QPoint showpoint = QPoint(start_x+now_check_point->col*rect_edge,start_x+now_check_point->row *rect_edge);
 
     int Gray = dBtoGray(now_check_point->now_thresholds);
     qDebug()<<"now_thresholds: "<<now_check_point->now_thresholds <<" Gray: "<< Gray;
@@ -197,6 +223,10 @@ void Test_widget::start_test(QPainter &painter)
     QPen pen(grayColor, 10, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
     painter.setPen(pen);
     painter.drawPoint(showpoint);
+
+    emit change_display(Test_Region);
+
+    test_time++;
 
 
 
@@ -261,8 +291,11 @@ void Test_widget::paintEvent(QPaintEvent *event)
             else{
                 appear_timer->stop();
                 disappear_timer->stop();
+                Test_flag = true;
+                Appear_flag = false;
                 qDebug()<<"Test over";
-                return;
+                painter.setPen( QPen(Qt::red, 10, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+                paint_init(painter);
             }
         }
 

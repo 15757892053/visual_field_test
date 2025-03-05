@@ -5,6 +5,8 @@
 #include <test_widget.h>
 #include <data/data.h>
 #include <QMessageBox>
+#include <../creat_losspic/discheckpoint.h>
+#include <vector>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -18,6 +20,9 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+public slots:
+    void display_data(std::vector<RectROI>& roi);
+
 private slots:
     void on_pushButton_clicked();
 
@@ -27,7 +32,9 @@ private:
     int stack_index = 0;
     Ui::MainWindow *ui;
     Test_widget* test_widget;
+    DisCheckPoint* dis_widget;
     Data_base* viusal_database;
+
     bool people_message_register();
 
 };

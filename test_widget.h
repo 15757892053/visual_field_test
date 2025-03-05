@@ -25,7 +25,12 @@ public:
     void paintEvent(QPaintEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
     void initTestRegion(); // 初始化测试区域以及阈值起点
+    std::vector<RectROI> Get_ROI(){return Test_Region;}
     ~Test_widget();
+
+signals :
+    void change_display(std::vector<RectROI>& roi);
+
 
 private slots:
     void start_stimulate();
@@ -47,6 +52,7 @@ private:
     int rect_edge = 50;
     int start_x; // 起始 x 坐标
     int start_y; // 起始 y 坐标
+    int test_time = 0;
     RectROI* now_check_point = nullptr;
     Data_base* visual_data;
     data_process* Data_process;
