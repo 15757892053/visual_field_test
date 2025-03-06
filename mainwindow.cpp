@@ -88,7 +88,8 @@ void MainWindow::on_pushButton_clicked()
 
 void MainWindow::on_database_change_clicked()
 {
-    stack_index = (++stack_index) % 3;
+    ++stack_index;
+    stack_index = stack_index % 3;
     this->ui->stackedWidget->setCurrentIndex(stack_index);
 }
 

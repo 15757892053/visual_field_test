@@ -185,7 +185,7 @@ void Test_widget::start_test(QPainter &painter)
         int test_index;
 
         for (int i = 0; i < Test_Region.size(); ++i) {
-            if(Test_Region[i].blind_spot||Test_Region[i].invaild_area||Test_Region[i].early_thresholds==0) continue;
+            if(Test_Region[i].blind_spot||Test_Region[i].invaild_area||Test_Region[i].early_thresholds==50) continue;
             testIndices.insert(i);
         }
 
@@ -253,7 +253,10 @@ void Test_widget::start_test(QPainter &painter)
                 qDebug()  << index << " not found in the set.";
             }
             if(uncheckedIndices.empty()) {
-                qDebug()   << " uncheckedIndices no member test over";
+                qDebug()<< " uncheckedIndices no member test over";
+                qDebug()<<"假阳测试："<<test_count.false_positive_number<<"/"<<test_count.positive_test_number;
+                qDebug()<<"假阴测试："<<test_count.false_negative_number<<"/"<<test_count.negative_test_number;
+                qDebug()<<"总共测试："<<test_count.all_number;
                 return;
             }
         }

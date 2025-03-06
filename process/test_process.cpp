@@ -16,11 +16,6 @@ void data_process::data_update(RectROI *now_check_point, strategy Strategy)
 
 void data_process::Fast_strategy(RectROI *now_check_point)
 {
-
-    //如果之前已经修改过来就不用再次修改
-    if(now_check_point->has_change) return;
-    //始终是在看不见的时候确定阈值-->下降的时候
-
     //处理假阴假阳测试
     if(now_check_point->in_negative){
         False_negative_tests(now_check_point);
@@ -30,6 +25,12 @@ void data_process::Fast_strategy(RectROI *now_check_point)
         False_positive_tests(now_check_point);
         return;
     }
+
+    //如果之前已经修改过来就不用再次修改
+    if(now_check_point->has_change) return;
+    //始终是在看不见的时候确定阈值-->下降的时候
+
+
 
     //case 1 : 按键确认，下降阈值
     if(now_check_point->check_pair){
@@ -79,9 +80,10 @@ void data_process::Fast_strategy(RectROI *now_check_point)
         now_check_point->now_thresholds = now_check_point->now_thresholds+now_check_point->change_value;
         now_check_point->check_pair =false;
     }
-
-
 }
+
+
+
 //假阴性检测，提供一个比已经确认能看到的更亮的点，若不能注意则假阴
 void data_process::False_negative_tests(RectROI *now_check_point)
 {
