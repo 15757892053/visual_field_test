@@ -15,6 +15,11 @@ Test_widget::Test_widget(Data_base* visual , QWidget *parent) :
     connect(appear_timer,&QTimer::timeout,this,&Test_widget::appear_stimulate);
     connect(disappear_timer,&QTimer::timeout,this,&Test_widget::disappear_stimulate);
     Data_process  = new data_process();
+    test_count.all_number=0;
+    test_count.negative_test_number=0;
+    test_count.positive_test_number=0;
+    test_count.false_negative_number=0;
+    test_count.false_positive_number=0;
 //    initTestRegion(); // 初始化测试区域
 }
 
@@ -67,12 +72,21 @@ void Test_widget::Key_triger()
     if(now_check_point==nullptr) return;
 
     //判断有没有进行测试模组，与常规2选1
-    if(now_check_point->in_negative||now_check_point){
+    if(test_check_point!=nullptr){
 
-        now_check_point->in_negative=false;
-        now_check_point->in_positive=false;
-        now_check_point->in_check = true;
-        now_check_point->check_pair = true;
+        if(test_check_point->in_negative){
+            test_check_point->in_negative=false;
+            qDebug()<<"假阴检测通过";
+        }
+
+        if(test_check_point->in_positive){
+            test_check_point->in_positive=false;
+            qDebug()<<"假阳检测通过";
+        }
+
+        test_check_point = nullptr;
+        return;
+
     }
 
     if(now_check_point->check_pair == false){
@@ -115,7 +129,7 @@ void Test_widget::initTestRegion()
             RectROI roi;
             roi.row = i;
             roi.col = j;
-            roi.now_thresholds = (int(init_mean[i][j])-30)<0 ? 0 : int(init_mean[i][j])-30;
+            roi.now_thresholds = (int(init_mean[i][j])-10)<0 ? 0 : int(init_mean[i][j])-10;
             if(isInTopLeftTriangle(j, i,eye) ||
                isInBottomLeftTriangle(j, i,eye) ||
                isInTopRightTriangle(j, i,eye) ||
@@ -166,13 +180,42 @@ void Test_widget::paint_init(QPainter &painter)
 void Test_widget::start_test(QPainter &painter)
 {
     //按照比例添加假阴假阳测试
-    if(test_time%10==0){
+    if(test_count.all_number%10==0){
         int randomChoice = std::rand() % 2;
-        if (randomChoice == 0) {
-            now_check_point->in_negative = true;
-        } else {
-            now_check_point->in_positive = true;
+        int test_index;
+
+        for (int i = 0; i < Test_Region.size(); ++i) {
+            if(Test_Region[i].blind_spot||Test_Region[i].invaild_area||Test_Region[i].early_thresholds==0) continue;
+            testIndices.insert(i);
         }
+
+        if(!testIndices.empty()){
+            test_index = std::rand() % testIndices.size();
+            auto it = testIndices.begin();
+            std::advance(it, test_index);
+            int selectedIndex = *it;
+            test_check_point  = &Test_Region[selectedIndex];
+            if (randomChoice == 0) {
+                test_check_point->in_negative = true;
+                test_count.negative_test_number++;
+                qDebug()<<"假阴检测进行";
+            } else {
+                test_check_point->in_positive = true;
+                test_count.positive_test_number++;
+                qDebug()<<"假阳检测进行";
+            }
+            Data_process->data_update(test_check_point);
+            QPoint showpoint = QPoint(start_x+now_check_point->col*rect_edge,start_x+now_check_point->row *rect_edge);
+            int Gray = dBtoGray(test_check_point->test_show_thresholds);
+            QColor grayColor(Gray, Gray, Gray);
+            QPen pen(grayColor, 10, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+            painter.setPen(pen);
+            painter.drawPoint(showpoint);
+            test_count.all_number++;
+            return;
+         }
+
+
     }
     //测试绘制，只存在一次
 
@@ -180,6 +223,20 @@ void Test_widget::start_test(QPainter &painter)
 
 
     //更新原先检测点的数据，若之前的测试没有反应，在这里清除
+    if(test_check_point!=nullptr){
+        if(test_check_point->in_positive) {
+            test_count.false_positive_number++;
+            test_check_point->in_positive = false;
+            qDebug()<<"假阳检测未被反应";
+        }
+        else if(test_check_point->in_negative) {
+            test_count.false_negative_number++;
+            test_check_point->in_negative =false;
+            qDebug()<<"假阴检测未被反应";
+        }
+        test_check_point = nullptr;
+    }
+
     if(now_check_point!=nullptr) {
 //        }
         Data_process->data_update(now_check_point);
@@ -226,7 +283,7 @@ void Test_widget::start_test(QPainter &painter)
 
     emit change_display(Test_Region);
 
-    test_time++;
+    test_count.all_number++;
 
 
 

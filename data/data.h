@@ -23,7 +23,8 @@ typedef struct RectROI {
 
     //保留前一个时刻的测试阈值，用于判断假阴
     int now_thresholds;
-    int early_thresholds;
+    int early_thresholds = 50;
+    int test_show_thresholds;
 
     //断定看不见所需的次数
     int need_count = 1;
@@ -55,6 +56,13 @@ typedef struct RectROI {
 
 }RectROI;
 
+typedef struct Test_counting{
+    int all_number;
+    int positive_test_number;
+    int negative_test_number;
+    int false_positive_number;
+    int false_negative_number;
+}Test_Counting;
 
 
 typedef struct People_message{

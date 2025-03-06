@@ -52,13 +52,15 @@ private:
     int rect_edge = 50;
     int start_x; // 起始 x 坐标
     int start_y; // 起始 y 坐标
-    int test_time = 0;
+    Test_Counting test_count;
     RectROI* now_check_point = nullptr;
+    RectROI* test_check_point = nullptr;
     Data_base* visual_data;
     data_process* Data_process;
     std::vector<QPoint> points; // 存储点的坐标
     std::vector<RectROI> Test_Region; // 测试区域
     std::unordered_set<int>  uncheckedIndices;
+    std::unordered_set<int>  testIndices;
 
     //按键响应
     void Key_triger();

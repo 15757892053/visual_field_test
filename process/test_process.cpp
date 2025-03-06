@@ -24,6 +24,11 @@ void data_process::Fast_strategy(RectROI *now_check_point)
     //处理假阴假阳测试
     if(now_check_point->in_negative){
         False_negative_tests(now_check_point);
+        return;
+    }
+    else if(now_check_point->in_positive){
+        False_positive_tests(now_check_point);
+        return;
     }
 
     //case 1 : 按键确认，下降阈值
@@ -38,7 +43,7 @@ void data_process::Fast_strategy(RectROI *now_check_point)
             now_check_point->need_count = 1;
         }
 
-        now_check_point->early_thresholds = now_check_point->now_thresholds;
+        now_check_point->early_thresholds = std::min(now_check_point->early_thresholds,now_check_point->now_thresholds);
         now_check_point->now_thresholds = now_check_point->now_thresholds+now_check_point->change_value;
         now_check_point->check_pair = false;
     }
@@ -70,29 +75,22 @@ void data_process::Fast_strategy(RectROI *now_check_point)
         }
 
         qDebug()<<"(x,y): ("<<now_check_point->col<<","<<now_check_point->row<<")点位增加亮度";
-        now_check_point->early_thresholds = now_check_point->now_thresholds;
+//        now_check_point->early_thresholds = now_check_point->now_thresholds;
         now_check_point->now_thresholds = now_check_point->now_thresholds+now_check_point->change_value;
         now_check_point->check_pair =false;
     }
 
 
-
-
-
-
-
-
-
 }
-
+//假阴性检测，提供一个比已经确认能看到的更亮的点，若不能注意则假阴
 void data_process::False_negative_tests(RectROI *now_check_point)
 {
-
+    now_check_point->test_show_thresholds = now_check_point->early_thresholds-3;
 }
-
+//假阳性测试，提供一个已经可以确认能看到的亮点，若不能被注意到则假阳
 void data_process::False_positive_tests(RectROI *now_check_point)
 {
-
+    now_check_point->test_show_thresholds = now_check_point->early_thresholds;
 }
 
 data_process::data_process()
