@@ -12,6 +12,8 @@
 #include <QFile>
 #include <QVector>
 
+#define RESULTSEE 0
+
 typedef enum{LEFT_EYE,RIGHT_EYE}eye_type;
 typedef enum{MAN,FEMALE}gender;
 typedef enum{UP,DOWN}change_director;
@@ -82,6 +84,8 @@ public:
     void load_visualdata();
     QSqlDatabase get_database(){return Visual_DB;};
     QVector<QVector<double>> Get_mean_threshold();
+    std::pair<double, double> Get_CDF(int x ,int y );
+
     //信息注册
     void set_age(const int age){ people_info.age = age;};
     void set_gender(const gender Gender){people_info.gender = Gender;};
@@ -89,6 +93,7 @@ public:
 
     //
     eye_type get_eyetype(){return people_info.eye;};
+    int get_age(){return people_info.age;}
 
 
 
@@ -111,7 +116,38 @@ private:
 };
 
 
+// 检查点是否在左上边长为 1 的正三角形区域
+static bool isInTopLeftTriangle(int x, int y ,eye_type eye) {
+    return eye==LEFT_EYE? (x == 0 && y == 0) || (x == 0 && y == 1) || (x == 1 && y == 0):
+               (x == 0 && (y == 0 || y == 1 || y == 2)) ||(x == 1 && (y == 0 || y == 1)) ||(x == 2 && y == 0);
+}
 
+// 检查点是否在左下边长为 1 的正三角形区域
+static bool isInBottomLeftTriangle(int x, int y,eye_type eye) {
+    return eye==LEFT_EYE? (x == 0 && y == 6) || (x == 0 && y == 7) || (x == 1 && y == 7):
+               (x == 0 && (y == 5 || y == 6 || y == 7)) ||(x == 1 && (y == 6 || y == 7)) ||(x == 2 && y == 7);
+}
+
+// 检查点是否在右上边长为 2 的正三角形区域
+static bool isInTopRightTriangle(int x, int y,eye_type eye) {
+    return eye==LEFT_EYE? (x >= 6 && y == 0) || (x >= 7 && y == 1) || (x >= 8 && y == 2):
+               (x == 8 && y == 0) || (x == 7 && y == 0) || (x == 8 && y == 1);
+}
+
+// 检查点是否在右下边长为 2 的正三角形区域
+static bool isInBottomRightTriangle(int x, int y,eye_type eye) {
+    return eye==LEFT_EYE? (x >= 8 && y == 5) || (x >= 7 && y == 6) || (x >= 6 && y == 7):
+               (x == 8 && y == 7) || (x == 7 && y == 7) || (x == 8 && y == 6);
+}
+
+// 检查点是否为指定坐标 (4, 1)
+static bool isAtSpecificPoint(int x, int y,eye_type eye) {
+    return eye==LEFT_EYE? x == 1 && y == 4:x == 7 && y == 4;
+}
+
+static float distance(float x1, float y1, float x2, float y2) {
+    return std::sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2));
+}
 
 
 #endif

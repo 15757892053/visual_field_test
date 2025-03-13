@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <test_widget.h>
+#include <result_widget.h>
 #include <data/data.h>
 #include <QMessageBox>
 #include <../creat_losspic/discheckpoint.h>
@@ -28,10 +29,13 @@ private slots:
 
     void on_database_change_clicked();
 
+    void on_pushButton_2_clicked();
+
 private:
     int stack_index = 0;
     Ui::MainWindow *ui;
     Test_widget* test_widget;
+    result_widget* Result_widget;
     DisCheckPoint* dis_widget;
     Data_base* viusal_database;
 

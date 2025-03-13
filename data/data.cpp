@@ -211,6 +211,40 @@ QVector<QVector<double>> Data_base::Get_mean_threshold()
 
 }
 
+std::pair<double, double> Data_base::Get_CDF(int x ,int y )
+{
+//   qDebug() << "load start: ";
+   std::pair<double, double> result;
+   QSqlQuery query(Visual_DB);
+   QString eyeType = get_eyetype() == LEFT_EYE ? "L" : "R";
+   int patient_age = get_age() ;
+   query.prepare("SELECT mean_threshold, std_threshold FROM computed_threshold_stats WHERE "
+                 "age = :age AND point_x = :x AND point_y = :y AND eye_type = :eye");
+   query.bindValue(":age", patient_age);
+   query.bindValue(":x", x);
+   query.bindValue(":y", y);
+   query.bindValue(":eye", eyeType);
+//   qDebug() << "Executing SQL:"
+//            << query.executedQuery()
+//            << "with values age=" << patient_age
+//            << ", x=" << x
+//            << ", y=" << y
+//            << ", eye=" << eyeType;
+
+   if (!query.exec()) {
+        qDebug() << "Query failed: " << query.lastError().text().toStdString() ;
+   }
+
+   if (query.next()) {
+        result.first = query.value(0).toDouble();
+        result.second = query.value(1).toDouble();
+        qDebug() << "load ok: ";
+   }
+
+   return result;
+
+}
+
 bool Data_base::deleteTable(const QString &tableName)
 {
     // 创建 QSqlQuery 对象

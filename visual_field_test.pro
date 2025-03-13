@@ -35,4 +35,7 @@ FORMS += \
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
+
+INCLUDEPATH += D:\yanbing\vim\opencv-4.6.0_binandlib\include
+LIBS += D:\yanbing\vim\opencv-4.6.0_binandlib\x64\mingw\lib\libopencv_*.a
 !isEmpty(target.path): INSTALLS += target

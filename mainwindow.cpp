@@ -9,6 +9,7 @@ MainWindow::MainWindow(QWidget *parent)
     viusal_database = new Data_base();
     viusal_database->init_database();
     test_widget = new Test_widget(viusal_database);
+    Result_widget = new result_widget(viusal_database);
     dis_widget = new DisCheckPoint(this->ui->widget);
     connect(test_widget,&Test_widget::change_display,this,&MainWindow::display_data);
     // 创建独立的 QSqlTableModel 对象
@@ -121,6 +122,19 @@ bool MainWindow::people_message_register()
 
     return true;
 
+
+}
+
+
+void MainWindow::on_pushButton_2_clicked()
+{
+    if(!test_widget->check_over()||test_widget->Get_ROI().empty()) {
+        qDebug()<<"检测未完成，请继续检测";
+        return;
+    }
+
+    Result_widget->show();
+    Result_widget->show_result(test_widget->Get_ROI());
 
 }
 

@@ -129,7 +129,7 @@ void Test_widget::initTestRegion()
             RectROI roi;
             roi.row = i;
             roi.col = j;
-            roi.now_thresholds = (int(init_mean[i][j])-10)<0 ? 0 : int(init_mean[i][j])-10;
+            roi.now_thresholds = (int(init_mean[i][j])-5)<0 ? 0 : int(init_mean[i][j])-5;
             if(isInTopLeftTriangle(j, i,eye) ||
                isInBottomLeftTriangle(j, i,eye) ||
                isInTopRightTriangle(j, i,eye) ||
@@ -152,10 +152,12 @@ void Test_widget::initTestRegion()
 
     start_y = size().height() / 2 - 3.5 * rect_edge; // 计算起始 y 坐标
     //将要检测的区域加入到set中
+#if RESULTSEE
     for (int i = 0; i < Test_Region.size(); ++i) {
         if(Test_Region[i].blind_spot||Test_Region[i].invaild_area) continue;
         uncheckedIndices.insert(i);
     }
+#endif
 
 
 }
@@ -300,7 +302,6 @@ void Test_widget::clear_background(QPainter &painter)
 
 }
 
-//
 int Test_widget::dBtoGray(int dB)
 {
     double exponent = dB / 10.0;
